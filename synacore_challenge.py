@@ -183,14 +183,16 @@ class Architecture:
             elif op_code == 15:  # rmem
                 index, arg1 = self.get_next_byte(index)
                 index, arg2 = self.get_next_byte(index, register_check=True)
-                self.registers[arg1] = arg2
 
+                self.registers[arg1] = self.stream[arg2]
                 self.debug_op_code_result(index, op_code, arg1, arg2)
 
             elif op_code == 16:  # wmem
                 index, arg1 = self.get_next_byte(index)
                 index, arg2 = self.get_next_byte(index, register_check=True)
-                self.registers[arg1] = arg2
+
+                self.stream[self.registers[arg1]] = arg2
+
                 self.debug_op_code_result(index, op_code, arg1, arg2)
 
             elif op_code == 17:
@@ -202,8 +204,12 @@ class Architecture:
                 self.debug_op_code_result(index, op_code, arg1)
 
             elif op_code == 18:
-                raise ValueError
+                if len(self.stack) == 0:
+                    sys.exit()
 
+                item = self.stack.pop()
+                index = item - 1
+                self.debug_op_code_result(index, op_code, item)
             elif op_code == 19:
                 """Print Next Character."""
                 index, arg1 = self.get_next_byte(index)
