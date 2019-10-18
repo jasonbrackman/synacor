@@ -24,219 +24,204 @@ class Architecture:
         self.stream = self.get_data_stream(file)
         self.process_stream()
 
+    def debug_op_code_result(self, *args):
+        names = {
+            0: "halt",
+            1: "set",
+            2: "push",
+            3: "pop",
+            4: "eq",
+            5: "gt",
+            6: "jmp",
+            7: "jt",
+            8: "jf",
+            9: "add",
+            10: "multi",
+            11: "mod",
+            12: "and",
+            13: "or",
+            14: "not",
+            15: "rmem",
+            16: "wmem",
+            17: "call",
+            18: "ret",
+            19: "out",
+            20: "in",
+            21: "noop",
+        }
+        index, op_code, *items = args
+        if self.debug is True:
+            print(op_code, f"<{names[op_code]}>", items, f"-> {self.stream[index + 1]}")
+            print(f"\tR: {self.registers}")
+            print(f"\tS: {self.stack}")
+
+    def get_next_byte(self, index, register_check=False):
+        index += 1
+        arg1 = self.stream[index]
+        if register_check:
+            arg1 = self.register_check(arg1)
+        return index, arg1
+
     def process_stream(self):
         index = 0
-        stream = self.stream
+
         while True:
-            current = self.register_check(stream[index])
-            if current == 0:
+            index, op_code = self.get_next_byte(index, register_check=True)
+
+            if op_code == 0:
                 sys.exit()
 
-            elif current == 1:
-                # set(a, b)
-                index += 1
-                arg1 = stream[index]
-
-                index += 1
-                arg2 = self.register_check(stream[index])
-
+            elif op_code == 1:
+                # set arg1 register to arg2
+                index, arg1 = self.get_next_byte(index)
+                index, arg2 = self.get_next_byte(index, register_check=True)
                 self.registers[arg1] = arg2
+                self.debug_op_code_result(index, op_code, arg1, arg2)
 
-                if self.debug:
-                    print("1", arg1, arg2, f"-> {stream[index+1]}")
-
-            elif current == 2:
+            elif op_code == 2:
                 # push(a) to stack
-                index += 1
-                arg1 = self.register_check(stream[index])
-
+                index, arg1 = self.get_next_byte(index, register_check=True)
                 self.stack.append(arg1)
-                if self.debug:
-                    print("2", arg1, f"-> {stream[index+1]}")
+                self.debug_op_code_result(index, op_code, arg1)
 
-            elif current == 3:
+            elif op_code == 3:
                 # pop off stack and write to register (a)
-                index += 1
-                arg1 = stream[index]
+                index, arg1 = self.get_next_byte(index)
                 self.registers[arg1] = self.stack.pop()
-                if self.debug:
-                    print(3, f"-> {stream[index+1]}")
+                self.debug_op_code_result(index, op_code, arg1)
 
-            elif current == 4:
+            elif op_code == 4:
                 # equal - set a to 1 if b == c else 0
-                index += 1
-                arg1 = stream[index]
-
-                index += 1
-                arg2 = self.register_check(stream[index])
-
-                index += 1
-                arg3 = self.register_check(stream[index])
-
+                index, arg1 = self.get_next_byte(index)
+                index, arg2 = self.get_next_byte(index, register_check=True)
+                index, arg3 = self.get_next_byte(index, register_check=True)
                 self.registers[arg1] = 1 if arg2 == arg3 else 0
+                self.debug_op_code_result(index, op_code, arg1, arg2, arg3)
 
-                if self.debug:
-                    print("4", arg2, arg3, f"-> {stream[index + 1]}")
-
-            elif current == 5:
-                index += 1
-                arg1 = stream[index]
-
-                index += 1
-                arg2 = self.register_check(stream[index])
-
-                index += 1
-                arg3 = self.register_check(stream[index])
-
+            elif op_code == 5:
+                index, arg1 = self.get_next_byte(index)
+                index, arg2 = self.get_next_byte(index, register_check=True)
+                index, arg3 = self.get_next_byte(index, register_check=True)
                 self.registers[arg1] = 1 if arg2 > arg3 else 0
-                if self.debug:
-                    print("5", arg2, arg3, f"-> {stream[index+1]}")
+                self.debug_op_code_result(index, op_code, arg1, arg2, arg3)
 
-            elif current == 6:  # jump(a)
-                index += 1
-                index = self.register_check(stream[index]) - 1
-                if self.debug:
-                    print(6, f"Jump({index}) -> {stream[index+1]}")
+            elif op_code == 6:  # jump(a)
+                index, arg1 = self.get_next_byte(index, register_check=True)
+                index = arg1 - 1
+                self.debug_op_code_result(index, op_code, arg1)
 
-            elif current == 7:
+            elif op_code == 7:
                 """JT: if a is nonzero jump to b"""
-                index += 1
-                arg1 = self.register_check(stream[index])
-
-                index += 1
-                arg2 = self.register_check(stream[index])
+                index, arg1 = self.get_next_byte(index, register_check=True)
+                index, arg2 = self.get_next_byte(index, register_check=True)
 
                 if arg1 != 0:
                     index = arg2 - 1
 
-                if self.debug:
-                    print(7, arg1, arg2, f"-> {stream[index+1]}")
+                self.debug_op_code_result(index, op_code, arg1, arg2)
 
-            elif current == 8:
+            elif op_code == 8:
                 """JF: if a is zero jump to b"""
-                index += 1
-                arg1 = self.register_check(stream[index])
-
-                index += 1
-                arg2 = self.register_check(stream[index])
-
+                index, arg1 = self.get_next_byte(index, register_check=True)
+                index, arg2 = self.get_next_byte(index, register_check=True)
                 if arg1 == 0:
                     index = arg2 - 1
 
-                if self.debug:
-                    print(8, arg1, arg2, f"-> {stream[index+1]}")
+                self.debug_op_code_result(index, op_code, arg1, arg2)
 
-            elif current == 9:
-                index += 1
-                arg1 = stream[index]
-
-                index += 1
-                arg2 = self.register_check(stream[index])
-
-                index += 1
-                arg3 = self.register_check(stream[index])
+            elif op_code == 9:
+                index, arg1 = self.get_next_byte(index)
+                index, arg2 = self.get_next_byte(index, register_check=True)
+                index, arg3 = self.get_next_byte(index, register_check=True)
 
                 self.registers[arg1] = (arg2 + arg3) % self.math_op
-                if self.debug:
-                    print("9", arg1, arg2, arg3, f"-> {stream[index+1]}")
+                self.debug_op_code_result(index, op_code, arg1, arg2, arg3)
 
-            elif current == 10:
-                index += 1
-                arg1 = stream[index]
-
-                index += 1
-                arg2 = self.register_check(stream[index])
-
-                index += 1
-                arg3 = self.register_check(stream[index])
+            elif op_code == 10:  # mult
+                index, arg1 = self.get_next_byte(index)
+                index, arg2 = self.get_next_byte(index, register_check=True)
+                index, arg3 = self.get_next_byte(index, register_check=True)
 
                 self.registers[arg1] = (arg2 * arg3) % self.math_op
-                if self.debug:
-                    print("10", arg1, arg2, arg3, f"-> {stream[index + 1]}")
+                self.debug_op_code_result(index, op_code, arg1, arg2, arg3)
 
-            elif current == 11:
-                raise ValueError
+            elif op_code == 11:  # mod
+                index, arg1 = self.get_next_byte(index)
+                index, arg2 = self.get_next_byte(index, register_check=True)
+                index, arg3 = self.get_next_byte(index, register_check=True)
+                self.registers[arg1] = (arg2 % arg3) % self.math_op
 
-            elif current == 12:
-                index += 1
-                arg1 = stream[index]
-
-                index += 1
-                arg2 = self.register_check(stream[index])
-
-                index += 1
-                arg3 = self.register_check(stream[index])
+            elif op_code == 12:
+                index, arg1 = self.get_next_byte(index)
+                index, arg2 = self.get_next_byte(index, register_check=True)
+                index, arg3 = self.get_next_byte(index, register_check=True)
 
                 self.registers[arg1] = arg2 & arg3  # % self.math_op
-                if self.debug:
-                    print("12", arg2, arg3, f"{stream[index+1]}")
 
-            elif current == 13:
-                index += 1
-                arg1 = stream[index]
+                self.debug_op_code_result(index, op_code, arg1, arg2, arg3)
 
-                index += 1
-                arg2 = self.register_check(stream[index])
+            elif op_code == 13:
+                index, arg1 = self.get_next_byte(index)
+                index, arg2 = self.get_next_byte(index, register_check=True)
+                index, arg3 = self.get_next_byte(index, register_check=True)
 
-                index += 1
-                arg3 = self.register_check(stream[index])
                 self.registers[arg1] = arg2 | arg3  # % self.math_op
-                if self.debug:
-                    print(13, arg2, arg3, f"{stream[index+1]}")
 
-            elif stream[index] == 14:
+                self.debug_op_code_result(index, op_code, arg1, arg2, arg3)
+
+            elif op_code == 14:
                 """bitwise inverse of <b> in <a>"""
-                index += 1
-                arg1 = stream[index]
-
-                index += 1
-                arg2 = self.register_check(stream[index])
+                index, arg1 = self.get_next_byte(index)
+                index, arg2 = self.get_next_byte(index, register_check=True)
 
                 inverse = (1 << 15) - 1 - arg2
                 inverse_arg2 = self.register_check(inverse)
                 self.registers[arg1] = inverse_arg2
 
-                if self.debug:
-                    print(14, arg1, inverse_arg2, f"-> {stream[index+1]}")
+                self.debug_op_code_result(index, op_code, arg1, arg2)
 
-            elif stream[index] == 15:
+            elif op_code == 15:  # rmem
+                index, arg1 = self.get_next_byte(index)
+                index, arg2 = self.get_next_byte(index, register_check=True)
+                self.registers[arg1] = arg2
+
+                self.debug_op_code_result(index, op_code, arg1, arg2)
+
+            elif op_code == 16:  # wmem
+                index, arg1 = self.get_next_byte(index)
+                index, arg2 = self.get_next_byte(index, register_check=True)
+                self.registers[arg1] = arg2
+                self.debug_op_code_result(index, op_code, arg1, arg2)
+
+            elif op_code == 17:
+                """Write next address to stack and jump to address"""
+                index, arg1 = self.get_next_byte(index, register_check=True)
+                self.stack.append(index+1)
+                index = arg1 - 1
+
+                self.debug_op_code_result(index, op_code, arg1)
+
+            elif op_code == 18:
                 raise ValueError
 
-            elif stream[index] == 16:
-                raise ValueError
-
-            elif current == 17:
-                """Write address to stack and jump to address"""
-                index += 1
-                self.stack.append(index)
-                index = self.register_check(stream[index]) - 1
-
-                if self.debug:
-                    print(17, index, f"-> {stream[index+1]}")
-
-            elif current == 18:
-                raise ValueError
-
-            elif current == 19:
+            elif op_code == 19:
                 """Print Next Character."""
-                index += 1
-                arg1 = self.register_check(stream[index])
+                index, arg1 = self.get_next_byte(index)
 
                 print(chr(arg1), end='')
 
-                if self.debug:
-                    print(19, arg1, f"-> {stream[index+1]}")
+                self.debug_op_code_result(index, op_code, arg1)
 
-            elif current == 20:
+            elif op_code == 20:
                 raise NotImplemented
 
-            elif current == 21:
+            elif op_code == 21:
+                self.debug_op_code_result(index, op_code)
                 pass
             else:
                 # Should NEVER get here...
+                print(op_code)
                 raise ValueError
-
-            index += 1
 
     def register_check(self, arg):
         if 32768 <= arg <= 32775:
