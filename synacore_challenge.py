@@ -18,9 +18,12 @@ class Architecture:
         32775: 0,
     }
 
+    character_input = list()
+
     stack: List[Optional[hex]] = list()
 
-    def __init__(self, file: str):
+    def __init__(self, file: str, route: List[str]):
+        self.character_input = list(route)
         self.stream = self.get_data_stream(file)
         self.process_stream()
 
@@ -199,14 +202,14 @@ class Architecture:
             elif op_code == 17:
                 """Write next address to stack and jump to address"""
                 index, arg1 = self.get_next_byte(index, register_check=True)
-                self.stack.append(index+1)
+                self.stack.append(index + 1)
                 index = arg1 - 1
 
                 self.debug_op_code_result(index, op_code, arg1)
 
             elif op_code == 18:
                 if len(self.stack) == 0:
-                    sys.exit()
+                    sys.exit(1)
 
                 item = self.stack.pop()
                 index = item - 1
@@ -216,21 +219,32 @@ class Architecture:
                 """Print Next Character."""
                 index, arg1 = self.get_next_byte(index, register_check=True)
 
-                print(chr(arg1), end='')
+                print(chr(arg1), end="")
 
                 self.debug_op_code_result(index, op_code, arg1)
 
             elif op_code == 20:
+
                 """read a character from the terminal and write its ascii code to <a>; 
                 it can be assumed that once input starts, it will continue until a newline
                 is encountered; this means that you can safely read whole lines from the
                 keyboard and trust that they will be fully read"""
-                result = input()
-                for character in list(result):
-                    index, arg1 = self.get_next_byte(index, register_check=True)
-                    self.registers[arg1] = ord(character)
+                if len(self.character_input) == 0:
+                    self.character_input = list(input())
+                    self.character_input.append("\n")
 
-                self.debug = True
+                if "".join(self.character_input[0:14]) == "use teleporter":
+                    self.registers[32775] = 5605
+                    # self.registers[32775] = 1000
+                    print(self.stream[index:])
+                result = self.character_input.pop(0)
+
+                index, arg1 = self.get_next_byte(index, register_check=False)
+                self.registers[arg1] = ord(result[0])
+
+                # Printing out the next set of bytes revealed that the next logical op_code
+                # instruction wants to match the input to a different register.  By simply typing
+                # \n I was able to unlock additional messages/commands/etc.
                 self.debug_op_code_result(index, op_code, result)
 
             elif op_code == 21:
@@ -250,17 +264,22 @@ class Architecture:
     def get_data_stream(file) -> List[int]:
         collector: List[int] = list()
 
-        with open(file, 'rb') as f:
+        with open(file, "rb") as f:
             data = f.read(2)
             while data:
-                byte = int.from_bytes(data, byteorder='little')
+                byte = int.from_bytes(data, byteorder="little")
                 collector.append(byte)
                 data = f.read(2)
 
         return collector
 
 
-if __name__ == "__main__":
-    f = r"data/synacor-challenge/challenge.bin"
-    a = Architecture(f)
+def create_route():
+    with open(r"./data/route.txt", "rt") as text:
+        return text.read()
 
+
+if __name__ == "__main__":
+    route = create_route()
+    f = r"data/synacor-challenge/challenge.bin"
+    a = Architecture(f, route)
