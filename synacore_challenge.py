@@ -180,19 +180,20 @@ class Architecture:
 
                 self.debug_op_code_result(index, op_code, arg1, arg2)
 
-            elif op_code == 15:  # rmem
-                index, arg1 = self.get_next_byte(index)
+            elif op_code == 15:
+                """rmem: read memory at address <b> and write it to <a>"""
+                index, arg1 = self.get_next_byte(index, register_check=False)
                 index, arg2 = self.get_next_byte(index, register_check=True)
 
                 self.registers[arg1] = self.stream[arg2]
                 self.debug_op_code_result(index, op_code, arg1, arg2)
 
-            elif op_code == 16:  # wmem
-                index, arg1 = self.get_next_byte(index)
+            elif op_code == 16:
+                """wmem: write the value from <b> into memory at address <a>"""
+                index, arg1 = self.get_next_byte(index, register_check=True)
                 index, arg2 = self.get_next_byte(index, register_check=True)
 
-                self.stream[self.registers[arg1]] = arg2
-
+                self.stream[arg1] = arg2
                 self.debug_op_code_result(index, op_code, arg1, arg2)
 
             elif op_code == 17:
@@ -210,24 +211,34 @@ class Architecture:
                 item = self.stack.pop()
                 index = item - 1
                 self.debug_op_code_result(index, op_code, item)
+
             elif op_code == 19:
                 """Print Next Character."""
-                index, arg1 = self.get_next_byte(index)
+                index, arg1 = self.get_next_byte(index, register_check=True)
 
                 print(chr(arg1), end='')
 
                 self.debug_op_code_result(index, op_code, arg1)
 
             elif op_code == 20:
-                raise NotImplemented
+                """read a character from the terminal and write its ascii code to <a>; 
+                it can be assumed that once input starts, it will continue until a newline
+                is encountered; this means that you can safely read whole lines from the
+                keyboard and trust that they will be fully read"""
+                result = input()
+                for character in list(result):
+                    index, arg1 = self.get_next_byte(index, register_check=True)
+                    self.registers[arg1] = ord(character)
+
+                self.debug = True
+                self.debug_op_code_result(index, op_code, result)
 
             elif op_code == 21:
                 self.debug_op_code_result(index, op_code)
                 pass
             else:
                 # Should NEVER get here...
-                print(op_code)
-                raise ValueError
+                raise ValueError(f"Unexpected op_code encountered: {op_code}")
 
     def register_check(self, arg):
         if 32768 <= arg <= 32775:
