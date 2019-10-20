@@ -181,10 +181,7 @@ class Machine:
                 self.pointer, arg3 = self.get_next_byte(
                     self.pointer, register_check=True
                 )
-                # if self.registers[32775] != 0:
-                #     print(self.stream[index-4: index-4+50])
-                #     print(self.registers)
-                #     print(self.stream[6027: 6027 + 30])
+
                 self.registers[arg1] = (arg2 + arg3) % self.math_op
                 self.debug_op_code_result(self.pointer, op_code, arg1, arg2, arg3)
 
@@ -219,7 +216,7 @@ class Machine:
                     self.pointer, register_check=True
                 )
 
-                self.registers[arg1] = arg2 & arg3  # % self.math_op
+                self.registers[arg1] = arg2 & arg3
 
                 self.debug_op_code_result(self.pointer, op_code, arg1, arg2, arg3)
 
@@ -232,7 +229,7 @@ class Machine:
                     self.pointer, register_check=True
                 )
 
-                self.registers[arg1] = arg2 | arg3  # % self.math_op
+                self.registers[arg1] = arg2 | arg3
 
                 self.debug_op_code_result(self.pointer, op_code, arg1, arg2, arg3)
 
@@ -317,7 +314,7 @@ class Machine:
 
                 # IMPORTANT: Change the 8th register at this point to pass initial
                 # machine startup tests -- but to then be ready for teleportation.
-                if "".join(self.character_input[0:14]) == "use teleporter\n":
+                if "".join(self.character_input).startswith("use teleporter\n"):
                     self.registers[32775] = self.override
 
                 result = ord(self.character_input.pop(0))
