@@ -1,8 +1,10 @@
 import sys
+import copy
+
 from typing import List, Optional
 
 
-class Architecture:
+class Machine:
     debug = False
 
     math_op = 32768
@@ -19,13 +21,17 @@ class Architecture:
     }
 
     character_input = list()
-
     stack: List[Optional[hex]] = list()
+    pointer: int = 0
 
-    def __init__(self, file: str, route: List[str]):
+    # hack the machine
+    override_check: str = ""
+    restore_point = None
+
+    def __init__(self, file: str, route: List[str], override: int = 0):
         self.character_input = list(route)
         self.stream = self.get_data_stream(file)
-        self.process_stream()
+        self.override = override
 
     def debug_op_code_result(self, *args):
         names = {
@@ -54,9 +60,17 @@ class Architecture:
         }
         index, op_code, *items = args
         if self.debug is True:
-            print(op_code, f"<{names[op_code]}>", items, f"-> {self.stream[index + 1]}")
-            print(f"\tR: {self.registers}")
-            print(f"\tS: {self.stack}")
+            actuals = [self.register_check(i) for i in items]
+            print(
+                index,
+                op_code,
+                f"<{names[op_code]}>",
+                list(zip(items, actuals)),
+                f"-> {self.stream[index + 1]}",
+            )
+            # print(f"\tR: {self.registers}")
+            # print(f"\tS: {self.stack}")
+            input()
 
     def get_next_byte(self, index, register_check=False):
         index += 1
@@ -66,162 +80,230 @@ class Architecture:
         return index, arg1
 
     def process_stream(self):
-        index = 0
-
         while True:
-            index, op_code = self.get_next_byte(index, register_check=True)
+            self.pointer, op_code = self.get_next_byte(
+                self.pointer, register_check=True
+            )
 
             if op_code == 0:
                 sys.exit()
 
             elif op_code == 1:
                 # set arg1 register to arg2
-                index, arg1 = self.get_next_byte(index)
-                index, arg2 = self.get_next_byte(index, register_check=True)
+                self.pointer, arg1 = self.get_next_byte(self.pointer)
+                self.pointer, arg2 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
                 self.registers[arg1] = arg2
-                self.debug_op_code_result(index, op_code, arg1, arg2)
+                self.debug_op_code_result(self.pointer, op_code, arg1, arg2)
 
             elif op_code == 2:
                 # push(a) to stack
-                index, arg1 = self.get_next_byte(index, register_check=True)
+                self.pointer, arg1 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
                 self.stack.append(arg1)
-                self.debug_op_code_result(index, op_code, arg1)
+                self.debug_op_code_result(self.pointer, op_code, arg1)
 
             elif op_code == 3:
                 # pop off stack and write to register (a)
-                index, arg1 = self.get_next_byte(index)
+                self.pointer, arg1 = self.get_next_byte(self.pointer)
                 self.registers[arg1] = self.stack.pop()
-                self.debug_op_code_result(index, op_code, arg1)
+                self.debug_op_code_result(self.pointer, op_code, arg1)
 
             elif op_code == 4:
                 # equal - set a to 1 if b == c else 0
-                index, arg1 = self.get_next_byte(index)
-                index, arg2 = self.get_next_byte(index, register_check=True)
-                index, arg3 = self.get_next_byte(index, register_check=True)
+                self.pointer, arg1 = self.get_next_byte(self.pointer)
+                self.pointer, arg2 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
+                self.pointer, arg3 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
                 self.registers[arg1] = 1 if arg2 == arg3 else 0
-                self.debug_op_code_result(index, op_code, arg1, arg2, arg3)
+                self.debug_op_code_result(self.pointer, op_code, arg1, arg2, arg3)
 
             elif op_code == 5:
-                index, arg1 = self.get_next_byte(index)
-                index, arg2 = self.get_next_byte(index, register_check=True)
-                index, arg3 = self.get_next_byte(index, register_check=True)
+                self.pointer, arg1 = self.get_next_byte(self.pointer)
+                self.pointer, arg2 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
+                self.pointer, arg3 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
                 self.registers[arg1] = 1 if arg2 > arg3 else 0
-                self.debug_op_code_result(index, op_code, arg1, arg2, arg3)
+                self.debug_op_code_result(self.pointer, op_code, arg1, arg2, arg3)
 
             elif op_code == 6:  # jump(a)
-                index, arg1 = self.get_next_byte(index, register_check=True)
-                index = arg1 - 1
-                self.debug_op_code_result(index, op_code, arg1)
+                self.pointer, arg1 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
+                self.pointer = arg1 - 1
+                self.debug_op_code_result(self.pointer, op_code, arg1)
 
             elif op_code == 7:
                 """JT: if a is nonzero jump to b"""
-                index, arg1 = self.get_next_byte(index, register_check=True)
-                index, arg2 = self.get_next_byte(index, register_check=True)
+                self.pointer, arg1 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
+                self.pointer, arg2 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
 
+                # HACK for verification code to be short circuited
+                if self.registers[32775] != 0 and arg2 == 6048:
+                    # print(arg1, arg2)
+                    arg1 = 0
+                    # self.debug = False
                 if arg1 != 0:
-                    index = arg2 - 1
+                    self.pointer = arg2 - 1
 
-                self.debug_op_code_result(index, op_code, arg1, arg2)
+                self.debug_op_code_result(self.pointer, op_code, arg1, arg2)
 
             elif op_code == 8:
                 """JF: if a is zero jump to b"""
-                index, arg1 = self.get_next_byte(index, register_check=True)
-                index, arg2 = self.get_next_byte(index, register_check=True)
+                self.pointer, arg1 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
+                self.pointer, arg2 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
                 if arg1 == 0:
-                    index = arg2 - 1
+                    self.pointer = arg2 - 1
 
-                self.debug_op_code_result(index, op_code, arg1, arg2)
+                self.debug_op_code_result(self.pointer, op_code, arg1, arg2)
 
             elif op_code == 9:
-                index, arg1 = self.get_next_byte(index)
-                index, arg2 = self.get_next_byte(index, register_check=True)
-                index, arg3 = self.get_next_byte(index, register_check=True)
-
+                self.pointer, arg1 = self.get_next_byte(self.pointer)
+                self.pointer, arg2 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
+                self.pointer, arg3 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
+                # if self.registers[32775] != 0:
+                #     print(self.stream[index-4: index-4+50])
+                #     print(self.registers)
+                #     print(self.stream[6027: 6027 + 30])
                 self.registers[arg1] = (arg2 + arg3) % self.math_op
-                self.debug_op_code_result(index, op_code, arg1, arg2, arg3)
+                self.debug_op_code_result(self.pointer, op_code, arg1, arg2, arg3)
 
             elif op_code == 10:  # mult
-                index, arg1 = self.get_next_byte(index)
-                index, arg2 = self.get_next_byte(index, register_check=True)
-                index, arg3 = self.get_next_byte(index, register_check=True)
+                self.pointer, arg1 = self.get_next_byte(self.pointer)
+                self.pointer, arg2 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
+                self.pointer, arg3 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
 
                 self.registers[arg1] = (arg2 * arg3) % self.math_op
-                self.debug_op_code_result(index, op_code, arg1, arg2, arg3)
+                self.debug_op_code_result(self.pointer, op_code, arg1, arg2, arg3)
 
             elif op_code == 11:  # mod
-                index, arg1 = self.get_next_byte(index)
-                index, arg2 = self.get_next_byte(index, register_check=True)
-                index, arg3 = self.get_next_byte(index, register_check=True)
+                self.pointer, arg1 = self.get_next_byte(self.pointer)
+                self.pointer, arg2 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
+                self.pointer, arg3 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
                 self.registers[arg1] = (arg2 % arg3) % self.math_op
 
             elif op_code == 12:
-                index, arg1 = self.get_next_byte(index)
-                index, arg2 = self.get_next_byte(index, register_check=True)
-                index, arg3 = self.get_next_byte(index, register_check=True)
+                self.pointer, arg1 = self.get_next_byte(self.pointer)
+                self.pointer, arg2 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
+                self.pointer, arg3 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
 
                 self.registers[arg1] = arg2 & arg3  # % self.math_op
 
-                self.debug_op_code_result(index, op_code, arg1, arg2, arg3)
+                self.debug_op_code_result(self.pointer, op_code, arg1, arg2, arg3)
 
             elif op_code == 13:
-                index, arg1 = self.get_next_byte(index)
-                index, arg2 = self.get_next_byte(index, register_check=True)
-                index, arg3 = self.get_next_byte(index, register_check=True)
+                self.pointer, arg1 = self.get_next_byte(self.pointer)
+                self.pointer, arg2 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
+                self.pointer, arg3 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
 
                 self.registers[arg1] = arg2 | arg3  # % self.math_op
 
-                self.debug_op_code_result(index, op_code, arg1, arg2, arg3)
+                self.debug_op_code_result(self.pointer, op_code, arg1, arg2, arg3)
 
             elif op_code == 14:
                 """bitwise inverse of <b> in <a>"""
-                index, arg1 = self.get_next_byte(index)
-                index, arg2 = self.get_next_byte(index, register_check=True)
+                self.pointer, arg1 = self.get_next_byte(self.pointer)
+                self.pointer, arg2 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
 
                 inverse = (1 << 15) - 1 - arg2
                 inverse_arg2 = self.register_check(inverse)
                 self.registers[arg1] = inverse_arg2
 
-                self.debug_op_code_result(index, op_code, arg1, arg2)
+                self.debug_op_code_result(self.pointer, op_code, arg1, arg2)
 
             elif op_code == 15:
                 """rmem: read memory at address <b> and write it to <a>"""
-                index, arg1 = self.get_next_byte(index, register_check=False)
-                index, arg2 = self.get_next_byte(index, register_check=True)
+                self.pointer, arg1 = self.get_next_byte(
+                    self.pointer, register_check=False
+                )
+                self.pointer, arg2 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
 
                 self.registers[arg1] = self.stream[arg2]
-                self.debug_op_code_result(index, op_code, arg1, arg2)
+                self.debug_op_code_result(self.pointer, op_code, arg1, arg2)
 
             elif op_code == 16:
                 """wmem: write the value from <b> into memory at address <a>"""
-                index, arg1 = self.get_next_byte(index, register_check=True)
-                index, arg2 = self.get_next_byte(index, register_check=True)
+                self.pointer, arg1 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
+                self.pointer, arg2 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
 
                 self.stream[arg1] = arg2
-                self.debug_op_code_result(index, op_code, arg1, arg2)
+                self.debug_op_code_result(self.pointer, op_code, arg1, arg2)
 
             elif op_code == 17:
                 """Write next address to stack and jump to address"""
-                index, arg1 = self.get_next_byte(index, register_check=True)
-                self.stack.append(index + 1)
-                index = arg1 - 1
+                self.pointer, arg1 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
+                self.stack.append(self.pointer + 1)
+                self.pointer = arg1 - 1
 
-                self.debug_op_code_result(index, op_code, arg1)
+                self.debug_op_code_result(self.pointer, op_code, arg1)
 
             elif op_code == 18:
                 if len(self.stack) == 0:
                     sys.exit(1)
 
                 item = self.stack.pop()
-                index = item - 1
-                self.debug_op_code_result(index, op_code, item)
+                self.pointer = item - 1
+                self.debug_op_code_result(self.pointer, op_code, item)
 
             elif op_code == 19:
                 """Print Next Character."""
-                index, arg1 = self.get_next_byte(index, register_check=True)
+
+                self.pointer, arg1 = self.get_next_byte(
+                    self.pointer, register_check=True
+                )
 
                 print(chr(arg1), end="")
 
-                self.debug_op_code_result(index, op_code, arg1)
+                # Hack the machine for teleportation
+                self.hack_the_machine(arg1)
+
+                self.debug_op_code_result(self.pointer, op_code, arg1)
 
             elif op_code == 20:
 
@@ -233,30 +315,74 @@ class Architecture:
                     self.character_input = list(input())
                     self.character_input.append("\n")
 
-                if "".join(self.character_input[0:14]) == "use teleporter":
-                    self.registers[32775] = 5605
-                    # self.registers[32775] = 1000
-                    print(self.stream[index:])
-                result = self.character_input.pop(0)
+                # IMPORTANT: Change the 8th register at this point to pass initial
+                # machine startup tests -- but to then be ready for teleportation.
+                if "".join(self.character_input[0:14]) == "use teleporter\n":
+                    self.registers[32775] = self.override
 
-                index, arg1 = self.get_next_byte(index, register_check=False)
-                self.registers[arg1] = ord(result[0])
+                result = ord(self.character_input.pop(0))
+
+                self.pointer, arg1 = self.get_next_byte(
+                    self.pointer, register_check=False
+                )
+
+                self.registers[arg1] = result
 
                 # Printing out the next set of bytes revealed that the next logical op_code
                 # instruction wants to match the input to a different register.  By simply typing
                 # \n I was able to unlock additional messages/commands/etc.
-                self.debug_op_code_result(index, op_code, result)
+                self.debug_op_code_result(self.pointer, op_code, result)
 
             elif op_code == 21:
-                self.debug_op_code_result(index, op_code)
+                self.debug_op_code_result(self.pointer, op_code)
                 pass
             else:
                 # Should NEVER get here...
                 raise ValueError(f"Unexpected op_code encountered: {op_code}")
 
+    def hack_the_machine(self, arg1):
+        if (
+            "".join(self.character_input).startswith("use teleporter\n")
+            and self.registers[32775] == 0
+        ):
+            if self.restore_point is None:
+                # Create a point to get back to in order to loop faster.
+                # and hack the Machine for its stabilization number.
+                self.restore_point = copy.deepcopy(self)
+
+            # Only takes place when 'use teleporter' is triggered
+            self.registers[32775] = self.override
+
+        if self.registers[32775] != 0:
+            self.override_check += chr(arg1)
+
+            # Message seen if we don't hack the machine and SLOW verification takes place
+            if "1 billion years" in self.override_check:
+                self.debug = True
+                self.debug = False
+
+            # Message indicating verification took place, but failed
+            if "Nothing else seems to happen." in self.override_check:
+
+                # failed to resolve teleporter -- so lets restore the machine state
+                print(
+                    f"\nRestoring the world...: Register 32775: {self.registers[32775]}"
+                )
+                self.registers = dict(self.restore_point.registers)
+                self.stack = list(self.restore_point.stack)
+                self.stream = list(self.restore_point.stream)
+                self.override_check = self.restore_point.override_check[::]
+                self.character_input = list(self.restore_point.character_input)
+                self.pointer = self.restore_point.pointer
+                self.override += 1
+                self.registers[32775] = self.override
+
     def register_check(self, arg):
+        if isinstance(arg, int) is False:
+            raise TypeError(
+                f"expected an int, but instead received {type(arg)} -> {arg}"
+            )
         if 32768 <= arg <= 32775:
-            # print(f"Updating {arg} to {self.registers[arg]}")
             arg = self.registers[arg]
         return arg
 
@@ -279,7 +405,13 @@ def create_route():
         return text.read()
 
 
+def main(f, route, i):
+    a = Machine(f, route, i)
+    a.process_stream()
+
+
 if __name__ == "__main__":
     route = create_route()
     f = r"data/synacor-challenge/challenge.bin"
-    a = Architecture(f, route)
+    teleportation_calibration_code = 32773
+    main(f, route, teleportation_calibration_code)
