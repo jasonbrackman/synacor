@@ -86,10 +86,11 @@ class Machine:
             )
 
             if op_code == 0:
+                """halt 0 -> stop execution and terminate the program"""
                 sys.exit()
 
             elif op_code == 1:
-                # set arg1 register to arg2
+                """set: 1 a b -> set register <a> to the value of <b>"""
                 self.pointer, arg1 = self.get_next_byte(self.pointer)
                 self.pointer, arg2 = self.get_next_byte(
                     self.pointer, register_check=True
@@ -98,7 +99,7 @@ class Machine:
                 self.debug_op_code_result(self.pointer, op_code, arg1, arg2)
 
             elif op_code == 2:
-                # push(a) to stack
+                """push: 2 a -> push <a> onto the stack"""
                 self.pointer, arg1 = self.get_next_byte(
                     self.pointer, register_check=True
                 )
@@ -355,13 +356,18 @@ class Machine:
 
             # Message seen if we don't hack the machine and SLOW verification takes place
             if "1 billion years" in self.override_check:
-                self.debug = True
-                self.debug = False
+                pass
+                # This was used to trace the machine code that caused the verification
+                # While teh code is no longer needed with the solution -- keeping it
+                # for posterity :)
+                # self.debug = True
 
-            # Message indicating verification took place, but failed
+            # When brute forcing the code, many attempts will be made, and this message
+            # indicates verification took place, but failed
             if "Nothing else seems to happen." in self.override_check:
 
-                # failed to resolve teleporter -- so lets restore the machine state
+                # failed to resolve teleporter code -- so lets restore the machine state
+                # and try again
                 print(
                     f"\nRestoring the world...: Register 32775: {self.registers[32775]}"
                 )
