@@ -61,16 +61,25 @@ class Machine:
         index, op_code, *items = args
         if self.debug is True:
             actuals = [self.register_check(i) for i in items]
+
+            results = list()
+            for t in zip(items, actuals):
+                if t[0] == t[1]:
+                    results.append(f"[{t[0]}]")
+                else:
+                    results.append("[{}: {}]".format(t[0], t[1]))
+            if op_code == 19:
+                print()
             print(
-                index,
-                op_code,
-                f"<{names[op_code]}>",
-                list(zip(items, actuals)),
+                f"{index - len(results):05d}",
+                f"{op_code:02d}",
+                f"{names[op_code]:>6}",
+                *results,
                 f"-> {self.stream[index + 1]}",
             )
             # print(f"\tR: {self.registers}")
             # print(f"\tS: {self.stack}")
-            input()
+            # input()
 
     def get_next_byte(self, index, register_check=False):
         index += 1
@@ -313,6 +322,8 @@ class Machine:
                     self.character_input = list(input())
                     self.character_input.append("\n")
 
+                self.hack_orb()
+
                 # IMPORTANT: Change the 8th register at this point to pass initial
                 # machine startup tests -- but to then be ready for teleportation.
                 if "".join(self.character_input).startswith("use teleporter\n"):
@@ -337,6 +348,10 @@ class Machine:
             else:
                 # Should NEVER get here...
                 raise ValueError(f"Unexpected op_code encountered: {op_code}")
+
+    def hack_orb(self):
+        if "".join(self.character_input).startswith("use orb\n"):
+            self.debug = not self.debug
 
     def hack_the_machine(self, arg1):
         if (
