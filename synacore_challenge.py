@@ -58,6 +58,19 @@ class Machine:
             20: "in",
             21: "noop",
         }
+        description = {
+            1458: "Commands to get appropriate character to print starts here...",
+            1484: "Interesting counter -- if the two args equal some logic can happen, like 'is room yellow or red, etc'",
+            1528: "print_buffer...",
+            1531: "push onto the stack, set a register value, and call a function ... ",
+            2125: "Feels like a math operation in this block? Two items pushed to stack, and/not/or and then stores info to registers.",
+            1807: "Storing input character value ... ",
+            2144: "Register updated to new value... Note that register 32768 is also manipulated above.",
+            2146: "Reset register to what it was before the call started...",
+
+
+        }
+
         index, op_code, *items = args
         if self.debug is True:
             actuals = [self.register_check(i) for i in items]
@@ -70,16 +83,17 @@ class Machine:
                     results.append("[{}: {}]".format(t[0], t[1]))
             if op_code == 19:
                 print()
+
             print(
                 f"{index - len(results):05d}",
                 f"{op_code:02d}",
                 f"{names[op_code]:>6}",
                 *results,
                 f"-> {self.stream[index + 1]}",
+                f"\t\t\t{description.get(index - len(results), '')}",
             )
-            # print(f"\tR: {self.registers}")
-            # print(f"\tS: {self.stack}")
-            # input()
+
+
 
     def get_next_byte(self, index, register_check=False):
         index += 1

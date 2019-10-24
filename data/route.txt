@@ -70,3 +70,17 @@ north
 north
 east
 north
+inv
+inv
+take orb
+east
+west
+take orb
+north
+north
+north
+east
+east
+east
+west
+east
