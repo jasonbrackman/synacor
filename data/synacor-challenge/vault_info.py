@@ -37,12 +37,15 @@ class LocValue(NamedTuple):
 
 class Cave:
 
-    board = [["*", 8, "-", 1], [4, "*", 11, "*"], ["+", 4, "-", 18], [22, "-", 9, "*"]]
-
-    MAPPINGS = {(-1, 0): "north", (1, 0): "south", (0, 1): "east", (0, -1): "west"}
+    board = [
+        ["*", 8, "-", 1],
+        [4, "*", 11, "*"],
+        ["+", 4, "-", 18],
+        [22, "-", 9, "*"]
+    ]
 
     DIRECTION = Direction(north=(-1, 0), south=(1, 0), east=(0, 1), west=(0, -1))
-
+    MAPPINGS = {DIRECTION.north: "north", DIRECTION.south: "south", DIRECTION.east: "east", DIRECTION.west: "west"}
     GOAL = 30
 
     def __init__(self, start: LocValue):
@@ -54,20 +57,20 @@ class Cave:
         return x, y
 
     def is_legal(self, x, y) -> bool:
-        # if (x, y) == self.state.last_pos:
-        #     return False
-        if (x, y) == (0, 3) and self.state.value > self.GOAL:
-            return False
-        try:
-            if x >= 0 and x < len(self.board):
-                if y >= 0 and y < len(self.board):
-                    return self.board[x][y] is not None
-        except:
+        if (x, y) == self.state.last_pos and isinstance(self.state.operator, str):
             return False
 
+        if x < 0 or y < 0:
+            return False
+
+        if x >= len(self.board) or y >= len(self.board):
+            return False
+
+        return True
+
     def successors(self) -> List[Cave]:
-        min_number = -510
-        max_number = 5500
+        min_number = -45
+        max_number = 45
         collector = list()
         for direction in self.DIRECTION:
 
@@ -78,15 +81,17 @@ class Cave:
                 total_weight = self.state.value
 
                 if isinstance(room_value, int):
-                    # if x == 3 and y == 0:
-                    #     total_weight = room_value
-                    # else:
-                    if self.state.operator == "-":
-                        total_weight -= room_value
-                    if self.state.operator == "+":
-                        total_weight += room_value
+                    if (x, y) == (3, 0):
+                        total_weight = 22
                     else:
-                        total_weight *= room_value
+
+                        if self.state.operator == "-":
+                            total_weight -= room_value
+                        if self.state.operator == "+":
+                            total_weight += room_value
+                        if self.state.operator == "*":
+                            total_weight *= room_value
+
                     if max_number >= total_weight > min_number:
                         new_cave = Cave(
                             LocValue(
@@ -205,15 +210,16 @@ class Node(Generic[T]):
 
 def node_to_path(node: Node[T]) -> List[T]:
     path: List[T] = [
-        (node.state.state.direction, node.state.state.value, node.state.state.pos)
+        node.state
     ]
     # work backwards from end to front
     while node.parent is not None:
         node = node.parent
         if node.state.state.pos == (3, 0):
-            path.append("take orb")
+            # path.append("take orb")
+            ...
         path.append(
-            (node.state.state.direction, node.state.state.value, node.state.state.pos)
+            node.state
         )
 
     path.reverse()
@@ -282,6 +288,9 @@ if __name__ == "__main__":
 
     if result is not None:
         for index, itm in enumerate(node_to_path(result)):
-            print(itm)
+            x, y = itm.state.pos
+            print(itm.state.direction,
+                  # f"{itm.board[x][y]}",
+                  )
     else:
         print("no Result")

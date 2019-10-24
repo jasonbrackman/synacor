@@ -74,13 +74,22 @@ inv
 inv
 take orb
 east
+north
+east
+north
 west
-take orb
-north
-north
-north
-east
-east
-east
 west
+south
 east
+south
+east
+north
+east
+south
+west
+west
+north
+east
+north
+east
+north

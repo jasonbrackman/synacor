@@ -93,8 +93,6 @@ class Machine:
                 f"\t\t\t{description.get(index - len(results), '')}",
             )
 
-
-
     def get_next_byte(self, index, register_check=False):
         index += 1
         arg1 = self.stream[index]
