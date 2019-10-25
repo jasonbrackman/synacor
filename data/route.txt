@@ -87,3 +87,5 @@ north
 east
 vault
 mirror
+take mirror
+use mirror

@@ -60,15 +60,13 @@ class Machine:
         }
         description = {
             1458: "Commands to get appropriate character to print starts here...",
-            1484: "Interesting counter -- if the two args equal some logic can happen, like 'is room yellow or red, etc'",
-            1528: "print_buffer...",
-            1531: "push onto the stack, set a register value, and call a function ... ",
-            2125: "Feels like a math operation in this block? Two items pushed to stack, and/not/or and then stores info to registers.",
-            1807: "Storing input character value ... ",
-            2144: "Register updated to new value... Note that register 32768 is also manipulated above.",
-            2146: "Reset register to what it was before the call started...",
-
-
+            # 1484: "Interesting counter -- if the two args equal some logic can happen, like 'is room yellow or red, etc'",
+            # 1528: "print_buffer...",
+            # 1531: "push onto the stack, set a register value, and call a function ... ",
+            # 2125: "Feels like a math operation in this block? Two items pushed to stack, and/not/or and then stores info to registers.",
+            # 1807: "Storing input character value ... ",
+            # 2144: "Register updated to new value... Note that register 32768 is also manipulated above.",
+            # 2146: "Reset register to what it was before the call started...",
         }
 
         index, op_code, *items = args
@@ -108,7 +106,7 @@ class Machine:
 
             if op_code == 0:
                 """halt 0 -> stop execution and terminate the program"""
-                sys.exit()
+                sys.exit(op_code)
 
             elif op_code == 1:
                 """set: 1 a b -> set register <a> to the value of <b>"""
@@ -366,6 +364,10 @@ class Machine:
             self.debug = not self.debug
 
     def hack_the_machine(self, arg1):
+        if "".join(self.character_input).startswith("sandy beach"):
+            # put the machine back into its normal state
+            self.registers[32775] = 0
+
         if (
             "".join(self.character_input).startswith("use teleporter\n")
             and self.registers[32775] == 0
@@ -435,13 +437,13 @@ def create_route():
         return text.read()
 
 
-def main(f, route, i):
-    a = Machine(f, route, i)
+def main():
+    route = create_route()
+    f = r"data/synacor-challenge/challenge.bin"
+    calibration_code = 32773
+    a = Machine(f, list(route), calibration_code)
     a.process_stream()
 
 
 if __name__ == "__main__":
-    route = create_route()
-    f = r"data/synacor-challenge/challenge.bin"
-    teleportation_calibration_code = 32773
-    main(f, route, teleportation_calibration_code)
+    main()
