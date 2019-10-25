@@ -73,23 +73,17 @@ north
 inv
 inv
 take orb
-east
 north
 east
+east
 north
-west
 west
 south
 east
-south
 east
-north
-east
-south
-west
 west
 north
-east
 north
 east
-north
+vault
+mirror

@@ -69,8 +69,8 @@ class Cave:
         return True
 
     def successors(self) -> List[Cave]:
-        min_number = -45
-        max_number = 45
+        min_number = -40
+        max_number = 100
         collector = list()
         for direction in self.DIRECTION:
 
@@ -81,51 +81,32 @@ class Cave:
                 total_weight = self.state.value
 
                 if isinstance(room_value, int):
-                    if (x, y) == (3, 0):
-                        total_weight = 22
-                    else:
+                    if self.state.operator == "-":
+                        total_weight -= room_value
+                    if self.state.operator == "+":
+                        total_weight += room_value
+                    if self.state.operator == "*":
+                        total_weight *= room_value
 
-                        if self.state.operator == "-":
-                            total_weight -= room_value
-                        if self.state.operator == "+":
-                            total_weight += room_value
-                        if self.state.operator == "*":
-                            total_weight *= room_value
+                if (x, y) == (3, 0):
+                    total_weight = 22
 
-                    if max_number >= total_weight > min_number:
-                        new_cave = Cave(
+                if max_number >= total_weight > min_number:
+                    collector.append(
+                        Cave(
                             LocValue(
                                 pos=(x, y),
                                 value=total_weight,
-                                operator="",
+                                operator=room_value,
                                 direction=where_am_i,
                                 last_pos=self.state.pos,
                             )
                         )
-                        # print(new_cave.state.pos, new_cave.state.last_pos, new_cave.state.value)
-                        collector.append(new_cave)
-                else:
-                    if max_number >= total_weight > min_number:
-                        collector.append(
-                            Cave(
-                                LocValue(
-                                    pos=(x, y),
-                                    value=total_weight,
-                                    operator=room_value,
-                                    direction=where_am_i,
-                                    last_pos=self.state.pos,
-                                )
-                            )
-                        )
+                    )
 
         return collector
 
-    def calc_new_value(self):
-        ...
-
     def goal_test(self):
-        if self.state.pos == (0, 3):
-            print(self.state.value, self.state.pos)
         return self.state.value == self.GOAL and self.state.pos == (0, 3)
 
 
